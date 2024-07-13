@@ -29,7 +29,7 @@ const client = new MongoClient(mongoUri, {
   useUnifiedTopology: true,
 });
 
-const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
+const contractAddress = "0x7D37e8fb2c0AD546DfeF3f8E39d3EEEd9D9ac82C";
 const rpcUrl = process.env.RPC_URL || "https://zircuit1.p2pify.com";
 
 async function connectToMongo() {
@@ -72,23 +72,27 @@ async function fetchAndStoreSVGs() {
     for (let i = 0; i < totalSupply; i++) {
       const tokenId = await contract.tokenByIndex(i);
       const tokenURI = await contract.tokenURI(tokenId);
-      
+
       // Check if the token ID already exists
-      const existingToken = await collection.findOne({ tokenId: tokenId.toString() });
+      const existingToken = await collection.findOne({
+        tokenId: tokenId.toString(),
+      });
       if (existingToken) {
         console.log(`Token ID ${tokenId} already exists, skipping.`);
         continue;
       }
 
       // Decode the base64 SVG content
-      const svgContent = Buffer.from(tokenURI.split(',')[1], 'base64').toString('utf-8');
+      const svgContent = Buffer.from(tokenURI.split(",")[1], "base64").toString(
+        "utf-8"
+      );
       console.log(`SVG content for token ID ${tokenId}:`, svgContent);
 
       // Store the decoded SVG and token ID
       await collection.insertOne({
         tokenId: tokenId.toString(),
         svg: svgContent,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       console.log(`Stored SVG for token ID ${tokenId}`);
