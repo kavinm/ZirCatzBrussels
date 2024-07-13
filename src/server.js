@@ -1,9 +1,11 @@
-require("dotenv").config(); // Add this line to load environment variables
+require("dotenv").config();
 
 const express = require("express");
 const Anthropic = require("@anthropic-ai/sdk");
 const cors = require("cors");
 const { MongoClient, ObjectId } = require("mongodb");
+const { ethers } = require("ethers");
+const ZirCatsABI = require("./ZirCatsABI.json");
 
 const app = express();
 
@@ -16,11 +18,9 @@ app.use(
 );
 
 app.use(express.json());
-console.log(process.env.ANTHROPIC_API_KEY);
-console.log(process.env.MONGODB_URI);
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY, // Use the environment variable
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 const mongoUri = process.env.MONGODB_URI;
@@ -28,6 +28,9 @@ const client = new MongoClient(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+
+const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
+const rpcUrl = process.env.RPC_URL || "https://zircuit1.p2pify.com";
 
 async function connectToMongo() {
   try {
@@ -39,6 +42,74 @@ async function connectToMongo() {
 }
 
 connectToMongo();
+
+async function getProvider() {
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  try {
+    await provider.getNetwork();
+    console.log("Connected to the network");
+    return provider;
+  } catch (error) {
+    console.error("Failed to connect to the network:", error);
+    return null;
+  }
+}
+
+async function fetchAndStoreSVGs() {
+  const provider = await getProvider();
+  if (!provider) {
+    console.error("Could not connect to the network. Skipping SVG fetch.");
+    return;
+  }
+
+  const contract = new ethers.Contract(contractAddress, ZirCatsABI, provider);
+
+  try {
+    const totalSupply = await contract.totalSupply();
+    const db = client.db("zircats");
+    const collection = db.collection("svgs");
+
+    for (let i = 0; i < totalSupply; i++) {
+      const tokenId = await contract.tokenByIndex(i);
+      const tokenURI = await contract.tokenURI(tokenId);
+      
+      // Check if the token ID already exists
+      const existingToken = await collection.findOne({ tokenId: tokenId.toString() });
+      if (existingToken) {
+        console.log(`Token ID ${tokenId} already exists, skipping.`);
+        continue;
+      }
+
+      // Decode the base64 SVG content
+      const svgContent = Buffer.from(tokenURI.split(',')[1], 'base64').toString('utf-8');
+      console.log(`SVG content for token ID ${tokenId}:`, svgContent);
+
+      // Store the decoded SVG and token ID
+      await collection.insertOne({
+        tokenId: tokenId.toString(),
+        svg: svgContent,
+        createdAt: new Date()
+      });
+
+      console.log(`Stored SVG for token ID ${tokenId}`);
+    }
+
+    console.log("Finished fetching and storing SVGs");
+  } catch (error) {
+    console.error("Error fetching and storing SVGs:", error);
+  }
+}
+
+// Function to periodically fetch SVGs
+function startPeriodicFetch() {
+  setInterval(async () => {
+    console.log("Initiating periodic SVG fetch...");
+    await fetchAndStoreSVGs();
+  }, 10000); // 10000 milliseconds = 10 seconds
+}
+
+// Start periodic fetching when the server starts
+startPeriodicFetch();
 
 app.post("/generate-svg", async (req, res) => {
   try {
@@ -59,7 +130,7 @@ app.post("/generate-svg", async (req, res) => {
     const svg = msg.content[0].text;
     console.log("Generated SVG:", svg);
 
-    res.json({ svg });
+    res.json({ svg: svg });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Failed to generate SVG" });
@@ -88,6 +159,16 @@ app.get("/get-svgs", async (req, res) => {
   } catch (error) {
     console.error("Error fetching SVGs:", error);
     res.status(500).json({ error: "Failed to fetch SVGs" });
+  }
+});
+
+app.get("/fetch-svgs", async (req, res) => {
+  try {
+    await fetchAndStoreSVGs();
+    res.json({ message: "SVG fetch process initiated" });
+  } catch (error) {
+    console.error("Error initiating SVG fetch:", error);
+    res.status(500).json({ error: "Failed to initiate SVG fetch" });
   }
 });
 
