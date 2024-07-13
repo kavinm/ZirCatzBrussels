@@ -1,15 +1,36 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, Plane } from "@react-three/drei";
 import * as THREE from "three";
 import Modal from "react-modal";
 import { ethers } from "ethers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import ZirCatsABI from "./ZirCatsABI.json";
 import ZirCatNipABI from "./ZirCatNipABI.json";
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
 const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
-const zirCatNipAddress = "0x52efc82b54E9EFD38865Ed5572fb35bfFd16e87d"; // Replace with your ZirCatNip contract address
+const zirCatNipAddress = "0x52efc82b54E9EFD38865Ed5572fb35bfFd16e87d";
 
 Modal.setAppElement("#root");
 
@@ -154,9 +175,14 @@ function App() {
   const [svgs, setSVGs] = useState([]);
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
+  const [totalValueDeposited, setTotalValueDeposited] = useState(0);
+  const [isDataReady, setIsDataReady] = useState(false);
+
+  const chartRef = useRef(null);
 
   useEffect(() => {
     fetchSVGs();
+    fetchTotalValueDeposited();
   }, []);
 
   useEffect(() => {
@@ -173,6 +199,82 @@ function App() {
     fetchProvider();
   }, []);
 
+  const fetchTotalValueDeposited = async () => {
+    if (!provider) return;
+    const zirCatNip = new ethers.Contract(zirCatNipAddress, ZirCatNipABI, provider);
+    const totalValue = await zirCatNip.totalValueDeposited();
+    setTotalValueDeposited(Number(totalValue));
+    setIsDataReady(true);
+  };
+
+  const getPrice = (supply) => {
+    return ((supply * (supply + 1) * (2 * supply + 1)) / 6) * 1e13;
+  };
+
+  const generateChartData = () => {
+    const labels = Array.from({ length: 101 }, (_, i) => i);
+    const data = labels.map(i => getPrice(i) / 1e18);
+    
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Bonding Curve',
+          data: data,
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        },
+      ],
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'ZirCatNip Bonding Curve',
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Supply',
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Price (ETH)',
+        },
+      },
+    },
+    animation: false, // Disable animations for better performance
+  };
+
+  useEffect(() => {
+    if (chartRef.current && isDataReady) {
+      const chart = chartRef.current;
+      const currentSupply = totalValueDeposited / 1e18;
+      const currentPrice = getPrice(currentSupply) / 1e18;
+
+      chart.data.datasets.push({
+        label: 'Current Position',
+        data: [{ x: currentSupply, y: currentPrice }],
+        pointBackgroundColor: 'red',
+        pointBorderColor: 'red',
+        pointRadius: 6,
+        showLine: false,
+      });
+
+      chart.update();
+    }
+  }, [totalValueDeposited, isDataReady]);
+
   const handleMintNFT = async () => {
     if (!signer) {
       setError("Please connect your wallet first");
@@ -185,9 +287,8 @@ function App() {
         signer
       );
 
-      // Ensure the SVG is not double encoded
       const encodedSVG = btoa(newSVG);
-      const dataURL = `${encodedSVG}`;
+      const dataURL = `data:image/svg+xml;base64,${encodedSVG}`;
 
       const tx = await zirCatNip.burnShareAndMintNFT(dataURL);
       console.log("Transaction sent:", tx.hash);
@@ -196,6 +297,7 @@ function App() {
       setTheme("");
       setNewSVG(null);
       fetchSVGs();
+      fetchTotalValueDeposited();
     } catch (error) {
       console.error("Error occurred during minting:", error);
       setError("Minting failed. Please try again.");
@@ -213,24 +315,15 @@ function App() {
         ZirCatNipABI,
         signer
       );
-      const totalValueDeposited = await zirCatNip.totalValueDeposited();
-      const price = await zirCatNip.getPrice(totalValueDeposited, amount);
-
-      // Convert price to a string if it isn't already
-      const priceStr = price.toString();
-
-      // Calculate the protocol fee as 3% of the price
-      const protocolFee = ethers.parseEther(
-        (Number(ethers.formatEther(priceStr)) * 0.03).toFixed(18)
-      );
-      const totalPrice = ethers.parseEther(
-        (Number(ethers.formatEther(priceStr)) * 1.03).toFixed(18)
-      );
+      const price = await zirCatNip.calculateBuyPrice(amount);
+      const protocolFee = price.mul(3).div(100);
+      const totalPrice = price.add(protocolFee);
 
       const tx = await zirCatNip.buyShares(amount, { value: totalPrice });
       console.log("Transaction sent:", tx.hash);
       await tx.wait();
       console.log("Shares bought successfully!");
+      fetchTotalValueDeposited();
     } catch (error) {
       console.error("Error occurred during buying shares:", error);
       setError("Buying shares failed. Please try again.");
@@ -252,6 +345,7 @@ function App() {
       console.log("Transaction sent:", tx.hash);
       await tx.wait();
       console.log("Shares sold successfully!");
+      fetchTotalValueDeposited();
     } catch (error) {
       console.error("Error occurred during selling shares:", error);
       setError("Selling shares failed. Please try again.");
@@ -314,32 +408,6 @@ function App() {
     }
   };
 
-  const handlePublish = async () => {
-    try {
-      const response = await fetch("http://localhost:3001/publish-svg", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ svg: newSVG }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to publish SVG");
-      }
-      const data = await response.json();
-      if (data.success) {
-        console.log("SVG published successfully");
-        fetchSVGs();
-        handleCloseModal();
-      } else {
-        throw new Error("Failed to publish SVG");
-      }
-    } catch (error) {
-      console.error("Error publishing SVG:", error);
-      setError("Failed to publish SVG. Please try again.");
-    }
-  };
-
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <div
@@ -366,10 +434,52 @@ function App() {
       <Modal
         isOpen={isModalOpen}
         onRequestClose={handleCloseModal}
-        contentLabel="Generate New Cat">
+        contentLabel="Generate New Cat"
+        style={{
+          content: {
+            top: '50%',
+            left: '50%',
+            right: 'auto',
+            bottom: 'auto',
+            marginRight: '-50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: '#f0f0f0',
+            borderRadius: '10px',
+            padding: '20px',
+            maxWidth: '80%',
+            maxHeight: '80%',
+            overflow: 'auto'
+          },
+          overlay: {
+            backgroundColor: 'rgba(0, 0, 0, 0.75)'
+          }
+        }}
+      >
         <h2>What theme should your cat be?</h2>
-        <input type="text" value={theme} onChange={handleThemeChange} />
-        <button onClick={handleThemeSubmit} disabled={isLoading}>
+        <input 
+          type="text" 
+          value={theme} 
+          onChange={handleThemeChange} 
+          style={{
+            width: '100%',
+            padding: '10px',
+            marginBottom: '10px',
+            borderRadius: '5px',
+            border: '1px solid #ccc'
+          }}
+        />
+        <button 
+          onClick={handleThemeSubmit} 
+          disabled={isLoading}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
           {isLoading ? "Generating..." : "Generate"}
         </button>
         {error && <p style={{ color: "red" }}>{error}</p>}
@@ -377,15 +487,55 @@ function App() {
           <div>
             <h3>Generated SVG:</h3>
             <div dangerouslySetInnerHTML={{ __html: newSVG }} />
-            <button onClick={() => handleMintNFT()}>Mint NFT</button>
-            <button onClick={() => handleBuyShares(1)}>Buy Shares</button>{" "}
-            {/* Add this line */}
-            <button onClick={() => handleSellShares(1)}>
+            <button 
+              onClick={() => handleMintNFT()}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#008CBA',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginRight: '10px'
+              }}
+            >
+              Mint NFT
+            </button>
+            <button 
+              onClick={() => handleBuyShares(1)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginRight: '10px'
+              }}
+            >
+              Buy Shares
+            </button>
+            <button 
+              onClick={() => handleSellShares(1)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#555555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
               Sell Shares
-            </button>{" "}
-            {/* Add this line */}
+            </button>
           </div>
         )}
+        <div>
+          <h3>Bonding Curve</h3>
+          <div style={{ width: '600px', height: '400px' }}>
+            <Line ref={chartRef} options={chartOptions} data={generateChartData()} />
+          </div>
+        </div>
       </Modal>
     </div>
   );
