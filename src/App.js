@@ -18,6 +18,7 @@ import {
 } from "chart.js";
 import ZirCatsABI from "./ZirCatsABI.json";
 import ZirCatNipABI from "./ZirCatNipABI.json";
+import styled from "styled-components";
 
 ChartJS.register(
   CategoryScale,
@@ -33,6 +34,86 @@ const contractAddress = "0x7D37e8fb2c0AD546DfeF3f8E39d3EEEd9D9ac82C";
 const zirCatNipAddress = "0x5c176044E88db2Abc9db7117f8a9994B7ebc23f8";
 
 Modal.setAppElement("#root");
+
+const AppContainer = styled.div`
+  width: 100vw;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+`;
+
+const TopRightContainer = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+`;
+
+const Button = styled.button`
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: #45a049;
+  }
+`;
+
+const ControlPanel = styled.div`
+  position: absolute;
+  top: 80px;
+  left: 20px;
+  z-index: 1;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 20px;
+  border-radius: 10px;
+`;
+
+const Select = styled.select`
+  padding: 10px;
+  margin-right: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+`;
+
+const Input = styled.input`
+  padding: 10px;
+  margin-right: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+`;
+
+const ModalContent = styled.div`
+  h2 {
+    color: #333;
+    margin-bottom: 20px;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+
+  button {
+    margin-right: 10px;
+  }
+`;
+
+const ChartContainer = styled.div`
+  margin-top: 30px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+`;
 
 function Camera() {
   const { camera } = useThree();
@@ -539,44 +620,39 @@ function App() {
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          padding: 12,
-          position: "absolute",
-          top: 0,
-          right: 0,
-          zIndex: 1,
-        }}>
+    <AppContainer>
+      <TopRightContainer>
         <ConnectButton />
-      </div>
-      <button onClick={handleOpenModal}>Generate New Cat</button>
-      <div style={{ position: "absolute", top: 50, left: 10, zIndex: 1 }}>
-        <select
+      </TopRightContainer>
+      <Button onClick={handleOpenModal} style={{ position: 'absolute', top: 20, left: 20, zIndex: 1 }}>
+        Buy Catnip / Lure Cat
+      </Button>
+      <ControlPanel>
+        <Select
           value={selectedTokenId}
-          onChange={(e) => setSelectedTokenId(e.target.value)}>
+          onChange={(e) => setSelectedTokenId(e.target.value)}
+        >
           <option value="">Select Token ID</option>
           {ownedTokenIds.map((tokenId) => (
             <option key={tokenId} value={tokenId}>
               Token ID: {tokenId}
             </option>
           ))}
-        </select>
-        <input
+        </Select>
+        <Input
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Enter text for cat"
         />
-        <button onClick={handleSetText}>Set Text</button>
-      </div>
+        <Button onClick={handleSetText}>Set Text</Button>
+      </ControlPanel>
       <Canvas
         camera={{ position: [0, 5, 10], fov: 75 }}
         onCreated={({ gl }) => {
           gl.setClearColor(new THREE.Color("#006400"));
-        }}>
+        }}
+      >
         <Scene svgs={svgs} />
       </Canvas>
 
@@ -586,109 +662,67 @@ function App() {
         contentLabel="Generate New Cat"
         style={{
           content: {
-            top: "50%",
-            left: "50%",
-            right: "auto",
-            bottom: "auto",
-            marginRight: "-50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: "#f0f0f0",
-            borderRadius: "10px",
-            padding: "20px",
-            maxWidth: "80%",
-            maxHeight: "80%",
-            overflow: "auto",
+            top: '50%',
+            left: '70%',
+            right: 'auto',
+            bottom: 'auto',
+            marginRight: '-50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: '#f0f0f0',
+            borderRadius: '10px',
+            padding: '30px',
+            maxWidth: '80%',
+            maxHeight: '80%',
+            overflow: 'auto',
           },
           overlay: {
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
           },
-        }}>
-        <h2>What theme should your cat be?</h2>
-        <input
-          type="text"
-          value={theme}
-          onChange={handleThemeChange}
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "10px",
-            borderRadius: "5px",
-            border: "1px solid #ccc",
-          }}
-        />
-        <button
-          onClick={handleThemeSubmit}
-          disabled={isLoading}
-          style={{
-            padding: "10px 20px",
-            backgroundColor: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}>
-          {isLoading ? "Generating..." : "Generate"}
-        </button>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        {newSVG && (
-          <div>
-            <h3>Generated SVG:</h3>
-            <div dangerouslySetInnerHTML={{ __html: newSVG }} />
-            <button
-              onClick={() => handleMintNFT()}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#008CBA",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-                marginRight: "10px",
-              }}>
-              Mint NFT
-            </button>
-          </div>
-        )}
-        <div>
-          <h3>Bonding Curve</h3>
-          <div style={{ width: "600px", height: "400px" }}>
-            <Line
-              ref={chartRef}
-              options={chartOptions}
-              data={generateChartData(totalValueDeposited)}
-            />
-          </div>
-          <div style={{ marginTop: "20px" }}>
-            <button
-              onClick={() => handleBuyShares(1)}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#4CAF50",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-                marginRight: "10px",
-              }}>
-              Buy Shares
-            </button>
-            <button
-              onClick={() => handleSellShares(1)}
-              style={{
-                padding: "10px 20px",
-                backgroundColor: "#f44336",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}>
-              Sell Shares
-            </button>
-          </div>
-        </div>
+        }}
+      >
+        <ModalContent>
+          <h2>What theme should your cat be?</h2>
+          <Input
+            type="text"
+            value={theme}
+            onChange={handleThemeChange}
+            placeholder="Enter a theme"
+          />
+          <Button onClick={handleThemeSubmit} disabled={isLoading}>
+            {isLoading ? "Generating..." : "Generate"}
+          </Button>
+          {error && <p style={{ color: "red" }}>{error}</p>}
+          {newSVG && (
+            <div>
+              <h3>Generated SVG:</h3>
+              <div dangerouslySetInnerHTML={{ __html: newSVG }} />
+              <Button onClick={handleMintNFT}>Mint NFT</Button>
+            </div>
+          )}
+          <ChartContainer>
+            <h3>Bonding Curve</h3>
+            <div style={{ width: "100%", height: "400px" }}>
+              <Line
+                ref={chartRef}
+                options={chartOptions}
+                data={generateChartData(totalValueDeposited)}
+              />
+            </div>
+            <div style={{ marginTop: "20px" }}>
+              <Button onClick={() => handleBuyShares(1)} style={{ marginRight: "10px" }}>
+                Buy Catnip
+              </Button>
+              <Button onClick={() => handleSellShares(1)} style={{ backgroundColor: "#f44336" }}>
+                Sell Catnip
+              </Button>
+            </div>
+          </ChartContainer>
+        </ModalContent>
       </Modal>
-    </div>
+    </AppContainer>
   );
 }
 
 export default App;
+
+
