@@ -1,3 +1,5 @@
+require("dotenv").config(); // Add this line to load environment variables
+
 const express = require("express");
 const Anthropic = require("@anthropic-ai/sdk");
 const cors = require("cors");
@@ -14,12 +16,14 @@ app.use(
 );
 
 app.use(express.json());
+console.log(process.env.ANTHROPIC_API_KEY);
+console.log(process.env.MONGODB_URI);
 
 const anthropic = new Anthropic({
-  apiKey: "",
+  apiKey: process.env.ANTHROPIC_API_KEY, // Use the environment variable
 });
 
-const mongoUri = "";
+const mongoUri = process.env.MONGODB_URI;
 const client = new MongoClient(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
