@@ -125,7 +125,7 @@ function NPC({ svgContent, index, tokenId }) {
     const fetchCatText = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3001/get-cat-text/${tokenId}`
+          `http://108.181.203.232:3001/get-cat-text/${tokenId}`
         );
         if (response.ok) {
           const text = await response.text();
@@ -269,7 +269,7 @@ function App() {
   const generateChartData = (totalValueDeposited) => {
     const labels = Array.from({ length: 101 }, (_, i) => i);
     const data = labels.map((i) => getPrice(i) / 1e18);
-  
+
     return {
       labels,
       datasets: [
@@ -282,7 +282,12 @@ function App() {
         },
         {
           label: "Current Position",
-          data: [{ x: totalValueDeposited / 1e18, y: getPrice(totalValueDeposited / 1e18) / 1e18 }],
+          data: [
+            {
+              x: totalValueDeposited / 1e18,
+              y: getPrice(totalValueDeposited / 1e18) / 1e18,
+            },
+          ],
           borderColor: "red",
           backgroundColor: "red",
           pointRadius: 8,
@@ -291,7 +296,7 @@ function App() {
       ],
     };
   };
-  
+
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -304,18 +309,18 @@ function App() {
       },
       tooltip: {
         callbacks: {
-          label: function(context) {
-            let label = context.dataset.label || '';
+          label: function (context) {
+            let label = context.dataset.label || "";
             if (label) {
-              label += ': ';
+              label += ": ";
             }
             if (context.parsed.y !== null) {
               label += context.parsed.y.toFixed(6) + " ETH";
             }
             return label;
-          }
-        }
-      }
+          },
+        },
+      },
     },
     scales: {
       x: {
@@ -330,10 +335,10 @@ function App() {
           text: "Price (ETH)",
         },
         ticks: {
-          callback: function(value, index, values) {
+          callback: function (value, index, values) {
             return value.toFixed(6) + " ETH";
-          }
-        }
+          },
+        },
       },
     },
     animation: false,
@@ -459,7 +464,7 @@ function App() {
 
   const fetchSVGs = async () => {
     try {
-      const response = await fetch("http://localhost:3001/get-svgs");
+      const response = await fetch("http://108.181.203.232:3001/get-svgs");
       if (!response.ok) {
         throw new Error("Failed to fetch SVGs");
       }
@@ -488,7 +493,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:3001/generate-svg", {
+      const response = await fetch("http://108.181.203.232:3001/generate-svg", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -571,112 +576,112 @@ function App() {
       </Canvas>
 
       <Modal
-  isOpen={isModalOpen}
-  onRequestClose={handleCloseModal}
-  contentLabel="Generate New Cat"
-  style={{
-    content: {
-      top: "50%",
-      left: "50%",
-      right: "auto",
-      bottom: "auto",
-      marginRight: "-50%",
-      transform: "translate(-50%, -50%)",
-      backgroundColor: "#f0f0f0",
-      borderRadius: "10px",
-      padding: "20px",
-      maxWidth: "80%",
-      maxHeight: "80%",
-      overflow: "auto",
-    },
-    overlay: {
-      backgroundColor: "rgba(0, 0, 0, 0.75)",
-    },
-  }}>
-  <h2>What theme should your cat be?</h2>
-  <input
-    type="text"
-    value={theme}
-    onChange={handleThemeChange}
-    style={{
-      width: "100%",
-      padding: "10px",
-      marginBottom: "10px",
-      borderRadius: "5px",
-      border: "1px solid #ccc",
-    }}
-  />
-  <button
-    onClick={handleThemeSubmit}
-    disabled={isLoading}
-    style={{
-      padding: "10px 20px",
-      backgroundColor: "#4CAF50",
-      color: "white",
-      border: "none",
-      borderRadius: "5px",
-      cursor: "pointer",
-    }}>
-    {isLoading ? "Generating..." : "Generate"}
-  </button>
-  {error && <p style={{ color: "red" }}>{error}</p>}
-  {newSVG && (
-    <div>
-      <h3>Generated SVG:</h3>
-      <div dangerouslySetInnerHTML={{ __html: newSVG }} />
-      <button
-        onClick={() => handleMintNFT()}
+        isOpen={isModalOpen}
+        onRequestClose={handleCloseModal}
+        contentLabel="Generate New Cat"
         style={{
-          padding: "10px 20px",
-          backgroundColor: "#008CBA",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-          marginRight: "10px",
+          content: {
+            top: "50%",
+            left: "50%",
+            right: "auto",
+            bottom: "auto",
+            marginRight: "-50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "#f0f0f0",
+            borderRadius: "10px",
+            padding: "20px",
+            maxWidth: "80%",
+            maxHeight: "80%",
+            overflow: "auto",
+          },
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+          },
         }}>
-        Mint NFT
-      </button>
-    </div>
-  )}
-  <div>
-    <h3>Bonding Curve</h3>
-    <div style={{ width: "600px", height: "400px" }}>
-      <Line
-        ref={chartRef}
-        options={chartOptions}
-        data={generateChartData(totalValueDeposited)}
-      />
-    </div>
-    <div style={{ marginTop: "20px" }}>
-      <button
-        onClick={() => handleBuyShares(1)}
-        style={{
-          padding: "10px 20px",
-          backgroundColor: "#4CAF50",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-          marginRight: "10px",
-        }}>
-        Buy Shares
-      </button>
-      <button
-        onClick={() => handleSellShares(1)}
-        style={{
-          padding: "10px 20px",
-          backgroundColor: "#f44336",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}>
-        Sell Shares
-      </button>
-    </div>
-  </div>
-</Modal>
+        <h2>What theme should your cat be?</h2>
+        <input
+          type="text"
+          value={theme}
+          onChange={handleThemeChange}
+          style={{
+            width: "100%",
+            padding: "10px",
+            marginBottom: "10px",
+            borderRadius: "5px",
+            border: "1px solid #ccc",
+          }}
+        />
+        <button
+          onClick={handleThemeSubmit}
+          disabled={isLoading}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}>
+          {isLoading ? "Generating..." : "Generate"}
+        </button>
+        {error && <p style={{ color: "red" }}>{error}</p>}
+        {newSVG && (
+          <div>
+            <h3>Generated SVG:</h3>
+            <div dangerouslySetInnerHTML={{ __html: newSVG }} />
+            <button
+              onClick={() => handleMintNFT()}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#008CBA",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+                marginRight: "10px",
+              }}>
+              Mint NFT
+            </button>
+          </div>
+        )}
+        <div>
+          <h3>Bonding Curve</h3>
+          <div style={{ width: "600px", height: "400px" }}>
+            <Line
+              ref={chartRef}
+              options={chartOptions}
+              data={generateChartData(totalValueDeposited)}
+            />
+          </div>
+          <div style={{ marginTop: "20px" }}>
+            <button
+              onClick={() => handleBuyShares(1)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+                marginRight: "10px",
+              }}>
+              Buy Shares
+            </button>
+            <button
+              onClick={() => handleSellShares(1)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#f44336",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}>
+              Sell Shares
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
