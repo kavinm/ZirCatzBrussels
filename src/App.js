@@ -29,7 +29,7 @@ ChartJS.register(
   Legend
 );
 
-const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
+const contractAddress = "0x7D37e8fb2c0AD546DfeF3f8E39d3EEEd9D9ac82C";
 const zirCatNipAddress = "0x5c176044E88db2Abc9db7117f8a9994B7ebc23f8";
 
 Modal.setAppElement("#root");
@@ -124,10 +124,12 @@ function NPC({ svgContent, index, tokenId }) {
   useEffect(() => {
     const fetchCatText = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/get-cat-text/${tokenId}`);
+        const response = await fetch(
+          `http://localhost:3001/get-cat-text/${tokenId}`
+        );
         if (response.ok) {
           const text = await response.text();
-          setCatText(text.replace(/^"|"$/g, ''));
+          setCatText(text.replace(/^"|"$/g, ""));
         }
       } catch (error) {
         console.error("Error fetching cat text:", error);
@@ -174,8 +176,7 @@ function NPC({ svgContent, index, tokenId }) {
           fontSize={0.75}
           color="black"
           anchorX="center"
-          anchorY="middle"
-        >
+          anchorY="middle">
           {catText}
         </Text>
       )}
@@ -192,7 +193,12 @@ function Scene({ svgs }) {
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 5, 5]} intensity={1} />
       {svgs.map((svg, index) => (
-        <NPC key={svg._id} svgContent={svg.svg} index={index} tokenId={svg.tokenId} />
+        <NPC
+          key={svg._id}
+          svgContent={svg.svg}
+          index={index}
+          tokenId={svg.tokenId}
+        />
       ))}
     </>
   );
@@ -506,7 +512,9 @@ function App() {
       </div>
       <button onClick={handleOpenModal}>Generate New Cat</button>
       <div style={{ position: "absolute", top: 50, left: 10, zIndex: 1 }}>
-        <select value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)}>
+        <select
+          value={selectedTokenId}
+          onChange={(e) => setSelectedTokenId(e.target.value)}>
           <option value="">Select Token ID</option>
           {ownedTokenIds.map((tokenId) => (
             <option key={tokenId} value={tokenId}>
