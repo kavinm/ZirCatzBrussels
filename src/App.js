@@ -5,7 +5,7 @@ import * as THREE from "three";
 import Modal from "react-modal";
 import { ethers } from "ethers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import ZirCatsABI from "./ZirCatsABI.json"; // Make sure to have this ABI file in your project
+import ZirCatsABI from "./ZirCatsABI.json";
 
 const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
 
@@ -77,10 +77,11 @@ function Floor() {
 function NPC({ svgContent, index }) {
   const [texture, setTexture] = useState(null);
   const [position, setPosition] = useState([
-    Math.random() * 20 - 10,
-    1, // Keep the Y position constant to stay on the floor
-    Math.random() * 20 - 10,
+    Math.random() * 80 - 40,
+    1,
+    Math.random() * 80 - 40,
   ]);
+  const [direction, setDirection] = useState([1, 1]);
 
   useEffect(() => {
     if (svgContent) {
@@ -99,8 +100,20 @@ function NPC({ svgContent, index }) {
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
     const offset = (index * Math.PI) / 2;
-    const newX = position[0] + Math.sin(time * 0.3 + offset) * 0.1;
-    const newZ = position[2] + Math.cos(time * 0.2 + offset) * 0.1;
+    const speed = 0.1;
+
+    let newX = position[0] + Math.sin(time * 0.3 + offset) * speed * direction[0];
+    let newZ = position[2] + Math.cos(time * 0.2 + offset) * speed * direction[1];
+
+    if (Math.abs(newX) > 48) {
+      setDirection([direction[0] * -1, direction[1]]);
+      newX = Math.sign(newX) * 48;
+    }
+    if (Math.abs(newZ) > 48) {
+      setDirection([direction[0], direction[1] * -1]);
+      newZ = Math.sign(newZ) * 48;
+    }
+
     setPosition([newX, position[1], newZ]);
   });
 
