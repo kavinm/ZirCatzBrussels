@@ -73,7 +73,6 @@ async function fetchAndStoreSVGs() {
       const tokenId = await contract.tokenByIndex(i);
       const tokenURI = await contract.tokenURI(tokenId);
 
-      // Check if the token ID already exists
       const existingToken = await collection.findOne({
         tokenId: tokenId.toString(),
       });
@@ -82,13 +81,11 @@ async function fetchAndStoreSVGs() {
         continue;
       }
 
-      // Decode the base64 SVG content
       const svgContent = Buffer.from(tokenURI.split(",")[1], "base64").toString(
         "utf-8"
       );
       console.log(`SVG content for token ID ${tokenId}:`, svgContent);
 
-      // Store the decoded SVG and token ID
       await collection.insertOne({
         tokenId: tokenId.toString(),
         svg: svgContent,
@@ -104,16 +101,46 @@ async function fetchAndStoreSVGs() {
   }
 }
 
-// Function to periodically fetch SVGs
 function startPeriodicFetch() {
   setInterval(async () => {
     console.log("Initiating periodic SVG fetch...");
     await fetchAndStoreSVGs();
-  }, 10000); // 10000 milliseconds = 10 seconds
+  }, 10000);
 }
 
-// Start periodic fetching when the server starts
 startPeriodicFetch();
+
+async function listenForTextSetEvents() {
+  const provider = await getProvider();
+  if (!provider) {
+    console.error("Could not connect to the network. Skipping event listening.");
+    return;
+  }
+
+  const contract = new ethers.Contract(contractAddress, ZirCatsABI, provider);
+
+  contract.on("TextSet", async (tokenId, text, event) => {
+    console.log(`TextSet event: TokenID ${tokenId}, Text: ${text}`);
+
+    const db = client.db("zircats");
+    const collection = db.collection("catTexts");
+
+    try {
+      await collection.updateOne(
+        { tokenId: tokenId.toString() },
+        { $set: { text: text } },
+        { upsert: true }
+      );
+      console.log(`Stored text for token ID ${tokenId}`);
+    } catch (error) {
+      console.error("Error storing text in MongoDB:", error);
+    }
+  });
+
+  console.log("Listening for TextSet events...");
+}
+
+listenForTextSetEvents();
 
 app.post("/generate-svg", async (req, res) => {
   try {
@@ -173,6 +200,18 @@ app.get("/fetch-svgs", async (req, res) => {
   } catch (error) {
     console.error("Error initiating SVG fetch:", error);
     res.status(500).json({ error: "Failed to initiate SVG fetch" });
+  }
+});
+
+app.get("/get-cat-text/:tokenId", async (req, res) => {
+  try {
+    const db = client.db("zircats");
+    const collection = db.collection("catTexts");
+    const result = await collection.findOne({ tokenId: req.params.tokenId });
+    res.json(result ? result.text : null);
+  } catch (error) {
+    console.error("Error fetching cat text:", error);
+    res.status(500).json({ error: "Failed to fetch cat text" });
   }
 });
 

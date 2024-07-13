@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { OrbitControls, Plane } from "@react-three/drei";
+import { OrbitControls, Plane, Text } from "@react-three/drei";
 import * as THREE from "three";
 import Modal from "react-modal";
 import { ethers } from "ethers";
@@ -97,7 +97,7 @@ function Floor() {
   );
 }
 
-function NPC({ svgContent, index }) {
+function NPC({ svgContent, index, tokenId }) {
   const [texture, setTexture] = useState(null);
   const [position, setPosition] = useState([
     Math.random() * 80 - 40,
@@ -105,6 +105,7 @@ function NPC({ svgContent, index }) {
     Math.random() * 80 - 40,
   ]);
   const [direction, setDirection] = useState([1, 1]);
+  const [catText, setCatText] = useState("");
 
   useEffect(() => {
     if (svgContent) {
@@ -119,6 +120,24 @@ function NPC({ svgContent, index }) {
       });
     }
   }, [svgContent]);
+
+  useEffect(() => {
+    const fetchCatText = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/get-cat-text/${tokenId}`);
+        if (response.ok) {
+          const text = await response.text();
+          setCatText(text.replace(/^"|"$/g, ''));
+        }
+      } catch (error) {
+        console.error("Error fetching cat text:", error);
+      }
+    };
+
+    if (tokenId) {
+      fetchCatText();
+    }
+  }, [tokenId]);
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
@@ -145,9 +164,22 @@ function NPC({ svgContent, index }) {
   if (!texture) return null;
 
   return (
-    <Plane args={[2, 2]} position={position}>
-      <meshBasicMaterial map={texture} transparent side={THREE.DoubleSide} />
-    </Plane>
+    <group>
+      <Plane args={[2, 2]} position={position}>
+        <meshBasicMaterial map={texture} transparent side={THREE.DoubleSide} />
+      </Plane>
+      {catText && (
+        <Text
+          position={[position[0], position[1] + 1.5, position[2]]}
+          fontSize={0.75}
+          color="black"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {catText}
+        </Text>
+      )}
+    </group>
   );
 }
 
@@ -160,7 +192,7 @@ function Scene({ svgs }) {
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 5, 5]} intensity={1} />
       {svgs.map((svg, index) => (
-        <NPC key={svg._id} svgContent={svg.svg} index={index} />
+        <NPC key={svg._id} svgContent={svg.svg} index={index} tokenId={svg.tokenId} />
       ))}
     </>
   );
@@ -177,6 +209,9 @@ function App() {
   const [signer, setSigner] = useState(null);
   const [totalValueDeposited, setTotalValueDeposited] = useState(0);
   const [isDataReady, setIsDataReady] = useState(false);
+  const [ownedTokenIds, setOwnedTokenIds] = useState([]);
+  const [selectedTokenId, setSelectedTokenId] = useState("");
+  const [inputText, setInputText] = useState("");
 
   const chartRef = useRef(null);
 
@@ -198,6 +233,12 @@ function App() {
     };
     fetchProvider();
   }, []);
+
+  useEffect(() => {
+    if (signer) {
+      fetchOwnedTokenIds();
+    }
+  }, [signer]);
 
   const fetchTotalValueDeposited = async () => {
     if (!provider) return;
@@ -257,7 +298,7 @@ function App() {
         },
       },
     },
-    animation: false, // Disable animations for better performance
+    animation: false,
   };
 
   useEffect(() => {
@@ -279,6 +320,23 @@ function App() {
     }
   }, [totalValueDeposited, isDataReady]);
 
+  const fetchOwnedTokenIds = async () => {
+    if (!signer) return;
+    try {
+      const zirCats = new ethers.Contract(contractAddress, ZirCatsABI, signer);
+      const address = await signer.getAddress();
+      const balance = await zirCats.balanceOf(address);
+      const tokenIds = [];
+      for (let i = 0; i < balance; i++) {
+        const tokenId = await zirCats.tokenOfOwnerByIndex(address, i);
+        tokenIds.push(tokenId.toString());
+      }
+      setOwnedTokenIds(tokenIds);
+    } catch (error) {
+      console.error("Error fetching owned token IDs:", error);
+    }
+  };
+
   const handleMintNFT = async () => {
     if (!signer) {
       setError("Please connect your wallet first");
@@ -291,7 +349,6 @@ function App() {
         signer
       );
 
-      // Ensure the SVG is not double encoded
       const encodedSVG = btoa(newSVG);
       const dataURL = `${encodedSVG}`;
 
@@ -322,10 +379,8 @@ function App() {
       const totalValueDeposited = await zirCatNip.totalValueDeposited();
       const price = await zirCatNip.getPrice(totalValueDeposited, amount);
 
-      // Convert price to a string if it isn't already
       const priceStr = price.toString();
 
-      // Calculate the protocol fee as 3% of the price
       const protocolFee = ethers.parseEther(
         (Number(ethers.formatEther(priceStr)) * 0.03).toFixed(18)
       );
@@ -420,6 +475,21 @@ function App() {
     }
   };
 
+  const handleSetText = async () => {
+    if (!signer || !selectedTokenId || !inputText) return;
+    try {
+      const zirCats = new ethers.Contract(contractAddress, ZirCatsABI, signer);
+      const tx = await zirCats.setText(selectedTokenId, inputText);
+      await tx.wait();
+      console.log("Text set successfully!");
+      setInputText("");
+      fetchSVGs(); // Refresh SVGs to update the text
+    } catch (error) {
+      console.error("Error setting text:", error);
+      setError("Failed to set text. Please try again.");
+    }
+  };
+
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <div
@@ -435,6 +505,23 @@ function App() {
         <ConnectButton />
       </div>
       <button onClick={handleOpenModal}>Generate New Cat</button>
+      <div style={{ position: "absolute", top: 50, left: 10, zIndex: 1 }}>
+        <select value={selectedTokenId} onChange={(e) => setSelectedTokenId(e.target.value)}>
+          <option value="">Select Token ID</option>
+          {ownedTokenIds.map((tokenId) => (
+            <option key={tokenId} value={tokenId}>
+              Token ID: {tokenId}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="Enter text for cat"
+        />
+        <button onClick={handleSetText}>Set Text</button>
+      </div>
       <Canvas
         camera={{ position: [0, 5, 10], fov: 75 }}
         onCreated={({ gl }) => {
