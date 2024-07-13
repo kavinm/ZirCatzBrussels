@@ -248,17 +248,22 @@ function App() {
 
   const fetchTotalValueDeposited = async () => {
     if (!provider) return;
-    const zirCatNip = new ethers.Contract(
-      zirCatNipAddress,
-      ZirCatNipABI,
-      provider
-    );
-    const totalValue = await zirCatNip.totalValueDeposited();
-    setTotalValueDeposited(Number(totalValue));
-    setIsDataReady(true);
-    if (chartRef.current) {
-      chartRef.current.data = generateChartData(Number(totalValue));
-      chartRef.current.update();
+    try {
+      const zirCatNip = new ethers.Contract(
+        zirCatNipAddress,
+        ZirCatNipABI,
+        provider
+      );
+      const totalValue = await zirCatNip.totalValueDeposited();
+      console.log("Fetched totalValueDeposited:", totalValue.toString());
+      setTotalValueDeposited(Number(totalValue));
+      setIsDataReady(true);
+      if (chartRef.current) {
+        chartRef.current.data = generateChartData(Number(totalValue));
+        chartRef.current.update();
+      }
+    } catch (error) {
+      console.error("Error fetching totalValueDeposited:", error);
     }
   };
 
@@ -284,8 +289,8 @@ function App() {
           label: "Current Position",
           data: [
             {
-              x: totalValueDeposited / 1e18,
-              y: getPrice(totalValueDeposited / 1e18) / 1e18,
+              x: totalValueDeposited,
+              y: getPrice(totalValueDeposited / 1e18),
             },
           ],
           borderColor: "red",
