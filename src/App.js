@@ -6,8 +6,10 @@ import Modal from "react-modal";
 import { ethers } from "ethers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import ZirCatsABI from "./ZirCatsABI.json";
+import ZirCatNipABI from "./ZirCatNipABI.json";
 
 const contractAddress = "0xD3b647A7b76c8251260662D956001943b0A669A8";
+const zirCatNipAddress = "0x52efc82b54E9EFD38865Ed5572fb35bfFd16e87d"; // Replace with your ZirCatNip contract address
 
 Modal.setAppElement("#root");
 
@@ -102,8 +104,10 @@ function NPC({ svgContent, index }) {
     const offset = (index * Math.PI) / 2;
     const speed = 0.1;
 
-    let newX = position[0] + Math.sin(time * 0.3 + offset) * speed * direction[0];
-    let newZ = position[2] + Math.cos(time * 0.2 + offset) * speed * direction[1];
+    let newX =
+      position[0] + Math.sin(time * 0.3 + offset) * speed * direction[0];
+    let newZ =
+      position[2] + Math.cos(time * 0.2 + offset) * speed * direction[1];
 
     if (Math.abs(newX) > 48) {
       setDirection([direction[0] * -1, direction[1]]);
@@ -175,13 +179,19 @@ function App() {
       return;
     }
     try {
-      const contract = new ethers.Contract(contractAddress, ZirCatsABI, signer);
-      const encodedSVG = `data:image/svg+xml;base64,${btoa(newSVG)}`;
-      const transaction = await contract.safeMint(
-        await signer.getAddress(),
-        encodedSVG
+      const zirCatNip = new ethers.Contract(
+        zirCatNipAddress,
+        ZirCatNipABI,
+        signer
       );
-      await transaction.wait();
+
+      // Ensure the SVG is not double encoded
+      const encodedSVG = btoa(newSVG);
+      const dataURL = `${encodedSVG}`;
+
+      const tx = await zirCatNip.burnShareAndMintNFT(dataURL);
+      console.log("Transaction sent:", tx.hash);
+      await tx.wait();
       setIsModalOpen(false);
       setTheme("");
       setNewSVG(null);
@@ -189,6 +199,62 @@ function App() {
     } catch (error) {
       console.error("Error occurred during minting:", error);
       setError("Minting failed. Please try again.");
+    }
+  };
+
+  const handleBuyShares = async (amount) => {
+    if (!signer) {
+      setError("Please connect your wallet first");
+      return;
+    }
+    try {
+      const zirCatNip = new ethers.Contract(
+        zirCatNipAddress,
+        ZirCatNipABI,
+        signer
+      );
+      const totalValueDeposited = await zirCatNip.totalValueDeposited();
+      const price = await zirCatNip.getPrice(totalValueDeposited, amount);
+
+      // Convert price to a string if it isn't already
+      const priceStr = price.toString();
+
+      // Calculate the protocol fee as 3% of the price
+      const protocolFee = ethers.parseEther(
+        (Number(ethers.formatEther(priceStr)) * 0.03).toFixed(18)
+      );
+      const totalPrice = ethers.parseEther(
+        (Number(ethers.formatEther(priceStr)) * 1.03).toFixed(18)
+      );
+
+      const tx = await zirCatNip.buyShares(amount, { value: totalPrice });
+      console.log("Transaction sent:", tx.hash);
+      await tx.wait();
+      console.log("Shares bought successfully!");
+    } catch (error) {
+      console.error("Error occurred during buying shares:", error);
+      setError("Buying shares failed. Please try again.");
+    }
+  };
+
+  const handleSellShares = async (amount) => {
+    if (!signer) {
+      setError("Please connect your wallet first");
+      return;
+    }
+    try {
+      const zirCatNip = new ethers.Contract(
+        zirCatNipAddress,
+        ZirCatNipABI,
+        signer
+      );
+      const tx = await zirCatNip.sellShares(amount);
+      console.log("Transaction sent:", tx.hash);
+      await tx.wait();
+      console.log("Shares sold successfully!");
+    } catch (error) {
+      console.error("Error occurred during selling shares:", error);
+      setError("Selling shares failed. Please try again.");
     }
   };
 
@@ -311,7 +377,13 @@ function App() {
           <div>
             <h3>Generated SVG:</h3>
             <div dangerouslySetInnerHTML={{ __html: newSVG }} />
-            <button onClick={handleMintNFT}>Mint NFT</button>
+            <button onClick={() => handleMintNFT()}>Mint NFT</button>
+            <button onClick={() => handleBuyShares(1)}>Buy Shares</button>{" "}
+            {/* Add this line */}
+            <button onClick={() => handleSellShares(1)}>
+              Sell Shares
+            </button>{" "}
+            {/* Add this line */}
           </div>
         )}
       </Modal>
