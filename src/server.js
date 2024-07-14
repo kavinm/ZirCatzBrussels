@@ -11,7 +11,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://zir-catz-brussels.vercel.app"],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -113,7 +113,9 @@ startPeriodicFetch();
 async function listenForTextSetEvents() {
   const provider = await getProvider();
   if (!provider) {
-    console.error("Could not connect to the network. Skipping event listening.");
+    console.error(
+      "Could not connect to the network. Skipping event listening."
+    );
     return;
   }
 

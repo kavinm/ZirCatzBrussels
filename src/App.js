@@ -32,6 +32,7 @@ ChartJS.register(
 
 const contractAddress = "0x7D37e8fb2c0AD546DfeF3f8E39d3EEEd9D9ac82C";
 const zirCatNipAddress = "0x5c176044E88db2Abc9db7117f8a9994B7ebc23f8";
+const API_URL = "https://zircatzserver.onrender.com";
 
 Modal.setAppElement("#root");
 
@@ -205,7 +206,7 @@ function NPC({ svgContent, index, tokenId }) {
   useEffect(() => {
     const fetchCatText = async () => {
       try {
-        const response = await fetch(`api/get-cat-text/${tokenId}`);
+        const response = await fetch(`${API_URL}/get-cat-text/${tokenId}`);
         if (response.ok) {
           const text = await response.text();
           setCatText(text.replace(/^"|"$/g, ""));
@@ -556,7 +557,7 @@ function App() {
 
   const fetchSVGs = async () => {
     try {
-      const response = await fetch("api/get-svgs");
+      const response = await fetch(`${API_URL}/get-svgs`);
       if (!response.ok) {
         throw new Error("Failed to fetch SVGs");
       }
@@ -585,7 +586,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("api/generate-svg", {
+      const response = await fetch(`${API_URL}/generate-svg`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
