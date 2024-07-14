@@ -205,9 +205,7 @@ function NPC({ svgContent, index, tokenId }) {
   useEffect(() => {
     const fetchCatText = async () => {
       try {
-        const response = await fetch(
-          `http://108.181.203.232:3001/get-cat-text/${tokenId}`
-        );
+        const response = await fetch(`api/get-cat-text/${tokenId}`);
         if (response.ok) {
           const text = await response.text();
           setCatText(text.replace(/^"|"$/g, ""));
@@ -558,7 +556,7 @@ function App() {
 
   const fetchSVGs = async () => {
     try {
-      const response = await fetch("http://108.181.203.232:3001/get-svgs");
+      const response = await fetch("api/get-svgs");
       if (!response.ok) {
         throw new Error("Failed to fetch SVGs");
       }
@@ -587,7 +585,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://108.181.203.232:3001/generate-svg", {
+      const response = await fetch("api/generate-svg", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
