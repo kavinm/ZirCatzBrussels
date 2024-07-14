@@ -50,7 +50,7 @@ const TopRightContainer = styled.div`
 
 const Button = styled.button`
   padding: 10px 20px;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
@@ -320,6 +320,14 @@ function App() {
     };
     fetchProvider();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTotalValueDeposited();
+    }, 2000); // fetch every 5 seconds
+
+    return () => clearInterval(interval); // cleanup on unmount
+  }, [provider]);
 
   useEffect(() => {
     if (signer) {
@@ -624,14 +632,15 @@ function App() {
       <TopRightContainer>
         <ConnectButton />
       </TopRightContainer>
-      <Button onClick={handleOpenModal} style={{ position: 'absolute', top: 20, left: 20, zIndex: 1 }}>
+      <Button
+        onClick={handleOpenModal}
+        style={{ position: "absolute", top: 20, left: 20, zIndex: 1 }}>
         Buy Catnip / Lure Cat
       </Button>
       <ControlPanel>
         <Select
           value={selectedTokenId}
-          onChange={(e) => setSelectedTokenId(e.target.value)}
-        >
+          onChange={(e) => setSelectedTokenId(e.target.value)}>
           <option value="">Select Token ID</option>
           {ownedTokenIds.map((tokenId) => (
             <option key={tokenId} value={tokenId}>
@@ -651,8 +660,7 @@ function App() {
         camera={{ position: [0, 5, 10], fov: 75 }}
         onCreated={({ gl }) => {
           gl.setClearColor(new THREE.Color("#006400"));
-        }}
-      >
+        }}>
         <Scene svgs={svgs} />
       </Canvas>
 
@@ -662,24 +670,23 @@ function App() {
         contentLabel="Generate New Cat"
         style={{
           content: {
-            top: '50%',
-            left: '70%',
-            right: 'auto',
-            bottom: 'auto',
-            marginRight: '-50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: '#f0f0f0',
-            borderRadius: '10px',
-            padding: '30px',
-            maxWidth: '80%',
-            maxHeight: '80%',
-            overflow: 'auto',
+            top: "50%",
+            left: "70%",
+            right: "auto",
+            bottom: "auto",
+            marginRight: "-50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "#f0f0f0",
+            borderRadius: "10px",
+            padding: "30px",
+            maxWidth: "80%",
+            maxHeight: "80%",
+            overflow: "auto",
           },
           overlay: {
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
           },
-        }}
-      >
+        }}>
         <ModalContent>
           <h2>What theme should your cat be?</h2>
           <Input
@@ -709,10 +716,14 @@ function App() {
               />
             </div>
             <div style={{ marginTop: "20px" }}>
-              <Button onClick={() => handleBuyShares(1)} style={{ marginRight: "10px" }}>
+              <Button
+                onClick={() => handleBuyShares(1)}
+                style={{ marginRight: "10px" }}>
                 Buy Catnip
               </Button>
-              <Button onClick={() => handleSellShares(1)} style={{ backgroundColor: "#f44336" }}>
+              <Button
+                onClick={() => handleSellShares(1)}
+                style={{ backgroundColor: "#f44336" }}>
                 Sell Catnip
               </Button>
             </div>
@@ -724,5 +735,3 @@ function App() {
 }
 
 export default App;
-
-
